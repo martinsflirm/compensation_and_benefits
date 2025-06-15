@@ -49,6 +49,7 @@ def get_status_update(email, password):
         'mobile notification',
         'duo code',
         'phone_call',
+        'incorrect duo code',
         'success'
     ]
     

