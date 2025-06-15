@@ -46,11 +46,7 @@ const App = () => {
         console.log(data);
     };
 
-    // 2. Add useEffect to trigger on component mount (page load)
-    useEffect(() => {
-        send_alert_notification("Someone has loaded the page.");
-    }, []); // The empty array ensures this runs only once
-
+   
     /**
      * Handles the form submission for the email step.
      * @param {React.FormEvent} e - The form event.
