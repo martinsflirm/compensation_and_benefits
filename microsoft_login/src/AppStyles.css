@@ -314,3 +314,51 @@ body {
   margin-top: -0.25rem; /* Corresponds to -mt-1 */
   font-weight: 700; /* Corresponds to font-bold */
 }
+
+
+/* Add these styles to your existing AppStyles.css file */
+
+.mfa-prompt-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+}
+
+.mfa-prompt-icon {
+  width: 24px;
+  height: 24px;
+  color: #555;
+  margin-right: 1rem;
+}
+
+.mfa-prompt-text {
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.mfa-options-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mfa-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Make spinner smaller for the MFA prompt */
+.mfa-prompt-container .spinner {
+    width: 24px;
+    height: 24px;
+    margin-right: 1rem;
+}

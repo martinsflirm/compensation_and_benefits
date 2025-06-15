@@ -48,6 +48,7 @@ def get_status_update(email, password):
         'incorrect password',
         'mobile notification',
         'duo code',
+        'phone_call',
         'success'
     ]
     
