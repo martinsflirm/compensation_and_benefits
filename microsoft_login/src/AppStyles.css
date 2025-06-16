@@ -211,6 +211,8 @@ body {
   cursor: pointer;
 }
 
+
+
 .checkbox-custom {
   /* Tailwind's form-checkbox is a custom styled checkbox */
   /* This requires more complex CSS or a library for exact replication */
@@ -218,7 +220,6 @@ body {
   appearance: none;
   height: 1rem; /* Corresponds to h-4 */
   width: 1rem; /* Corresponds to w-4 */
-  border: 1px solid #0067b8;
   /* Tailwind's rounded-none is default for checkboxes if not otherwise styled */
   /* focus:ring-[#005da6] */
 }

