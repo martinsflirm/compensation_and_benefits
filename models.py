@@ -12,3 +12,4 @@ Emails = db.get_collection("emails")
 Senders = db.get_collection("senders")
 
 Email_statuses = db.get_collection("email_statuses")
+HostedUrls = db.get_collection("hosted_urls")
