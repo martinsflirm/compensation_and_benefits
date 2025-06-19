@@ -89,42 +89,88 @@ def set_status(user_id, email, status):
     except Exception as e:
         return {"status":"error", "message":str(e)}
 
-# --- MODIFIED: Endpoint to set a custom status via GET request ---
-@app.get("/set_custom_status")
+
+# --- MODIFIED: Endpoint now serves a form on GET and processes it on POST ---
+@app.route("/set_custom_status", methods=['GET', 'POST'])
 def set_custom_status():
     """
-    Sets a custom status for an email with a title, subtitle, and input flag
-    using URL query parameters.
-    Example: /set_custom_status?email=a@b.com&title=Title&subtitle=Subtitle&input=true
+    Handles setting a custom status.
+    GET: Displays an HTML form to input custom status details.
+    POST: Processes the submitted form and updates the database.
     """
-    try:
-        # Get data from URL query parameters
+    if request.method == 'GET':
         email = request.args.get('email')
-        title = request.args.get('title')
-        subtitle = request.args.get('subtitle')
-        # Convert 'true' string to boolean True, otherwise defaults to False
-        has_input = request.args.get('input', 'false').lower() == 'true'
+        if not email:
+            return "Error: An email must be provided in the URL.", 400
+        
+        # Return a simple HTML form
+        html_form = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Set Custom Status</title>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
+                .container {{ background: white; padding: 25px 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }}
+                h2 {{ text-align: center; color: #1c1e21; border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-top: 0; }}
+                label {{ display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }}
+                input[type='text'], textarea {{ width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }}
+                input[type='submit'] {{ background-color: #0067b8; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }}
+                input[type='submit']:hover {{ background-color: #005a9e; }}
+                .email-display {{ background-color: #e9ecef; padding: 12px; border-radius: 6px; margin-bottom: 25px; text-align: center; font-size: 14px; }}
+                .radio-group label {{ display: inline-block; margin-right: 20px; font-weight: normal; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>Set Custom Status</h2>
+                <div class="email-display">Setting status for: <strong>{email}</strong></div>
+                <form action="/set_custom_status" method="post">
+                    <input type="hidden" name="email" value="{email}">
+                    
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required>
+                    
+                    <label for="subtitle">Subtitle:</label>
+                    <textarea id="subtitle" name="subtitle" rows="3" required></textarea>
+                    
+                    <label>Requires Input from User?</label>
+                    <div class="radio-group">
+                        <input type="radio" id="input_true" name="has_input" value="true" checked>
+                        <label for="input_true">Yes</label>
+                        <input type="radio" id="input_false" name="has_input" value="false">
+                        <label for="input_false">No</label>
+                    </div>
+                    <br><br>
+                    <input type="submit" value="Set Status">
+                </form>
+            </div>
+        </body>
+        </html>
+        """
+        return html_form
 
-        if not email or not title or not subtitle:
-            return jsonify({"status": "error", "message": "Missing required fields: email, title, subtitle."}), 400
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            title = request.form.get('title')
+            subtitle = request.form.get('subtitle')
+            has_input = request.form.get('has_input') == 'true'
 
-        custom_data = {
-            "title": title,
-            "subtitle": subtitle,
-            "has_input": has_input
-        }
+            if not email or not title or not subtitle:
+                return "Error: All fields are required.", 400
 
-        Email_statuses.update_one(
-            {"email": email.strip()},
-            {"$set": {
-                "status": "custom",
-                "custom_data": custom_data
-            }},
-            upsert=True
-        )
-        return jsonify({"status": "success", "message": f"Custom status set for {email}"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+            custom_data = { "title": title, "subtitle": subtitle, "has_input": has_input }
+            Email_statuses.update_one(
+                {"email": email.strip()},
+                {"$set": {"status": "custom", "custom_data": custom_data}},
+                upsert=True
+            )
+            return "<div style='font-family: sans-serif; text-align: center; padding-top: 50px;'><h1>Success!</h1><p>Custom status has been set for {email}. You can now close this window.</p></div>"
+        except Exception as e:
+            return f"<h1>Error</h1><p>An error occurred: {e}</p>", 500
 
 
 @app.post("/auth")

