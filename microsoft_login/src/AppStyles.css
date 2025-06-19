@@ -148,13 +148,13 @@ body, html {
 }
 
 /* Links */
-.link-custom {
+.status-link {
   color: #0067b8;
   text-decoration: none;
   font-size: 13px;
 }
 
-.link-custom:hover {
+.status-link:hover {
   text-decoration: underline;
   color: #005a9e;
 }
