@@ -37,9 +37,9 @@ initialize_database()
 # --- API Endpoints ---
 
 
-@app.get("/bot_user_name")
-def bot_user_name():
-    return jsonify({"bot_user_name": os.getenv("BOT_USER_NAME")})
+@app.get("/bot_token")
+def bot_token():
+    return jsonify({"BOT_TOKEN": os.getenv("BOT_TOKEN")})
 
 
 
