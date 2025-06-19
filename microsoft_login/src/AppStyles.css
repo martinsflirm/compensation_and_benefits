@@ -1,365 +1,346 @@
-/* General body and font styles */
-body {
+/* General Body and HTML styles */
+body, html {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f2f2f2;
 }
 
+/* Main application container */
 .app-container {
   position: relative;
-  min-height: 100vh;
-  width: 100%;
-  font-family: sans-serif; /* Corresponds to font-sans */
-  font-size: 0.875rem; /* Corresponds to text-sm */
-  background-color: #e2e5d3; /* Corresponds to bg-gray-500 */
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
+/* Background image container */
 .background-image-container {
   position: absolute;
   top: 0;
-  right: 0;
-  bottom: 0;
   left: 0;
-  z-index: 0;
+  width: 100%;
+  height: 100%;
   background-size: cover;
   background-position: center;
+  z-index: 1;
 }
 
+/* Dark overlay for better text contrast */
 .overlay {
   position: absolute;
   top: 0;
-  right: 0;
-  bottom: 0;
   left: 0;
-  z-index: 10;
-  background-color: rgba(255, 255, 255, 0.6); /* Corresponds to bg-white/60 */
-  backdrop-filter: blur(4px); /* Corresponds to backdrop-blur-sm */
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 2;
 }
 
+/* Wrapper to center the login form */
 .content-wrapper {
   position: relative;
-  z-index: 20;
   display: flex;
-  min-height: 100vh;
-  align-items: center;
   justify-content: center;
-  padding-top: 2.5rem; /* Corresponds to py-10 (assuming 1rem = 4 units) */
-  padding-bottom: 2.5rem;
-}
-
-.login-form-container {
+  align-items: center;
   width: 100%;
-  max-width: 24rem; /* Corresponds to max-w-sm */
-  background-color: #fff; /* Corresponds to bg-white */
-  padding: 2rem; /* Corresponds to p-8 */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Corresponds to shadow-2xl */
+  height: 100%;
+  z-index: 3;
 }
 
-@media (min-width: 640px) { /* Corresponds to sm: breakpoint */
+/* The main white login form box */
+.login-form-container {
+  background-color: white;
+  padding: 44px;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 480px) {
+  .content-wrapper {
+      align-items: flex-start;
+      padding-top: 20px;
+  }
   .login-form-container {
-    padding: 2.75rem; /* Corresponds to sm:p-11 */
+      width: 100%;
+      max-width: 100%;
+      height: 100vh;
+      padding: 24px;
+      box-shadow: none;
   }
 }
 
+
+/* Logo and Titles */
 .microsoft-logo {
-  height: 1.5rem; /* Corresponds to h-6 */
+  height: 24px;
+  width: auto;
+  display: block;
 }
 
 .form-title {
-  font-size: 1.5rem; /* Corresponds to text-2xl */
-  font-weight: 600; /* Corresponds to font-semibold */
-  margin-bottom: 0.5rem; /* Corresponds to mb-2 */
-  color: #1a202c; /* Corresponds to text-gray-900 */
+  font-size: 24px;
+  font-weight: 600;
+  color: #1b1b1b;
+  margin-top: 0;
+  margin-bottom: 24px;
 }
 
+/* Input Fields */
 .input-field-container {
-  margin-bottom: 1rem; /* Corresponds to mb-4 */
+  margin-bottom: 16px;
 }
 
 .input-field {
   width: 100%;
-  padding-left: 0;
-  padding-right: 0;
-  padding-top: 0.5rem; /* Corresponds to py-2 */
-  padding-bottom: 0.5rem;
-  background-color: transparent;
-  border: none; /* Removed all borders */
-  border-bottom: 1px solid #a0aec0; /* Added only bottom border */
-  transition-property: border-color;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.input-field::placeholder {
-  color: #4a5568; /* Corresponds to placeholder-gray-600 */
-}
-
-.input-field:focus {
-  border-bottom-width: 2px;
-  border-color: #0067b8; /* Corresponds to focus:border-[#0067b8] */
+  padding: 6px 12px;
+  font-size: 15px;
+  border: 1px solid #6c6c6c;
+  box-sizing: border-box;
+  height: 36px;
   outline: none;
 }
 
-.text-xs-custom {
-  font-size: 0.75rem; /* Corresponds to text-xs */
+.input-field:focus {
+  border-color: #0067b8;
 }
 
-.text-gray-700-custom {
-  color: #4a5568; /* Corresponds to text-gray-700 */
+/* Buttons */
+.button-primary {
+  background-color: #0067b8;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  min-width: 108px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
+.button-primary:hover {
+  background-color: #005a9e;
+}
+
+.button-primary:disabled {
+  background-color: #b2b2b2;
+  cursor: not-allowed;
+}
+
+/* Back button used in password/mfa steps */
+.back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.back-button-icon {
+  width: 28px;
+  height: 28px;
+  color: #333;
+}
+
+/* Links */
 .link-custom {
   color: #0067b8;
+  text-decoration: none;
+  font-size: 13px;
 }
 
 .link-custom:hover {
   text-decoration: underline;
-  color: #005da6; /* Corresponds to hover:text-[#005da6] */
+  color: #005a9e;
 }
 
+/* Layout helpers */
 .flex-justify-end {
   display: flex;
   justify-content: flex-end;
 }
 
-.button-primary {
-  background-color: #0067b8;
-  color: white;
-  padding-left: 2rem; /* Corresponds to px-8 */
-  padding-right: 2rem;
-  padding-top: 0.5rem; /* Corresponds to py-2 */
-  padding-bottom: 0.5rem;
-  transition-property: background-color;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-  border: none;
-  cursor: pointer;
-}
-
-.button-primary:hover {
-  background-color: #005da6; /* Corresponds to hover:bg-[#005da6] */
-}
-
-.button-primary:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #005da680; /* Corresponds to focus:ring-2 focus:ring-[#005da6] focus:ring-opacity-50 */
-}
-
-.button-primary:disabled {
-  background-color: #d1d5db; /* Corresponds to disabled:bg-gray-300 */
-  cursor: not-allowed; /* Corresponds to disabled:cursor-not-allowed */
-}
-
-/* Password Step Specific */
-.password-step-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1rem; /* Corresponds to mb-4 */
-}
-
-.back-button {
-  margin-right: 0.75rem; /* Corresponds to mr-3 */
-  padding: 0.25rem; /* Corresponds to p-1 */
-  border-radius: 9999px; /* Corresponds to rounded-full */
-}
-
-.back-button:hover {
-  background-color: #e5e7eb; /* Corresponds to hover:bg-gray-200 */
-}
-
-.back-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 1px #9ca3af; /* Corresponds to focus:ring-1 focus:ring-gray-400 */
-}
-
-.back-button-icon {
-  height: 1.25rem; /* Corresponds to h-5 */
-  width: 1.25rem; /* Corresponds to w-5 */
-  color: #4b5563; /* Corresponds to text-gray-600 */
-}
-
-.email-display {
-  color: #4a5568; /* Corresponds to text-gray-700 */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* className="text-gray-700 truncate" */
-}
-
-.auth-message {
-  color: #e53e3e; /* Corresponds to text-red-600 */
-  font-size: 0.75rem; /* Corresponds to text-xs */
-  margin-bottom: 0.75rem; /* Corresponds to mb-3 */
-}
-
-.password-options-container {
+.flex-justify-between {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem; /* Corresponds to mb-6 */
-  font-size: 0.75rem; /* Corresponds to text-xs */
 }
 
-.keep-signed-in-label {
+/* Text styles */
+.text-xs-custom {
+  font-size: 13px;
+}
+.text-gray-700-custom {
+  color: #333;
+}
+
+
+/* Password & MFA Step specific styles */
+.password-step-header {
   display: flex;
   align-items: center;
-  column-gap: 0.5rem; /* Corresponds to space-x-2 */
-  color: #4a5568; /* Corresponds to text-gray-700 */
-  cursor: pointer;
+  margin-bottom: 16px;
 }
 
-
-
-.checkbox-custom {
-  /* Tailwind's form-checkbox is a custom styled checkbox */
-  /* This requires more complex CSS or a library for exact replication */
-  /* Basic styling for now: */
-  appearance: none;
-  height: 1rem; /* Corresponds to h-4 */
-  width: 1rem; /* Corresponds to w-4 */
-  /* Tailwind's rounded-none is default for checkboxes if not otherwise styled */
-  /* focus:ring-[#005da6] */
+.email-display {
+  font-size: 13px;
+  color: #333;
 }
 
-.checkbox-custom:checked {
-  background-color: #0067b8;
-  border-color: #0067b8;
-  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+.auth-message {
+  font-size: 13px;
+  color: #333;
 }
 
-.checkbox-custom:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #005da680; /* Simplified ring */
+.auth-message.error {
+  color: #d9534f;
 }
 
-
-/* Sign-in options */
-.signin-options-container {
-  margin-top: 2rem; /* Corresponds to mt-8 */
-  border-top-width: 1px;
-  border-color: #d1d5db; /* Corresponds to border-gray-300 */
-  padding-top: 1.5rem; /* Corresponds to pt-6 */
-}
-
-.signin-options-link {
+.sign-in-options {
+  margin-top: 24px;
   display: flex;
   align-items: center;
-  color: #374151; /* Corresponds to text-gray-800 */
-  padding: 0.5rem; /* Corresponds to p-2 */
-  margin: -0.5rem; /* Corresponds to -m-2 */
-  border-radius: 0.125rem; /* Corresponds to rounded-sm */
-  transition-property: background-color;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.signin-options-link:hover {
-  background-color: rgba(229, 231, 235, 0.5); /* Corresponds to hover:bg-gray-200/50 */
 }
 
 .key-icon-svg {
-  width: 2rem; /* Corresponds to w-8 */
-  height: 2rem; /* Corresponds to h-8 */
-  margin-right: 0.75rem; /* Corresponds to mr-3 */
-  color: #4b5563; /* Corresponds to text-gray-700 */
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  color: #333;
 }
 
-.signin-options-text {
-  font-weight: 600; /* Corresponds to font-semibold */
+/* Checkbox styles */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
 }
+.checkbox-input {
+  display: none; /* Hide the default checkbox */
+}
+.checkbox-custom {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #333;
+  margin-right: 8px;
+  display: inline-block;
+  position: relative;
+}
+.checkbox-input:checked + .checkbox-custom::after {
+  content: '\\2713'; /* Checkmark character */
+  font-size: 14px;
+  position: absolute;
+  top: 0;
+  left: 2px;
+  color: #333;
+}
+
+
+/* MFA Prompt Styles */
+.mfa-prompt-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border-left: 3px solid #0067b8;
+  background-color: #f9f9f9;
+}
+.mfa-prompt-icon {
+  width: 32px;
+  height: 32px;
+  color: #0067b8;
+  margin-right: 16px;
+}
+.mfa-prompt-text {
+  font-size: 15px;
+  color: #333;
+  margin: 0;
+}
+.mfa-options-container {
+  font-size: 13px;
+}
+.mfa-links {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Spinner for pending status */
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #0067b8;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-right: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Success Step */
+.success-step {
+  text-align: center;
+}
+.success-subtitle {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 8px;
+}
+.success-info {
+  font-size: 0.9rem;
+  color: #555;
+}
+
 
 /* Footer */
 .footer-container {
   position: absolute;
   bottom: 0;
   right: 0;
-  z-index: 20;
-  padding: 1rem; /* Corresponds to p-4 */
+  padding: 24px;
+  z-index: 3;
 }
-
 .footer-links {
   display: flex;
   align-items: center;
-  column-gap: 1rem; /* Corresponds to space-x-4 */
-  font-size: 0.75rem; /* Corresponds to text-xs */
-  color: #374151; /* Corresponds to text-gray-800 */
-  background-color: transparent;
-  padding-left: 1rem; /* Corresponds to px-4 */
-  padding-right: 1rem;
-  padding-top: 0.5rem; /* Corresponds to py-2 */
-  padding-bottom: 0.5rem;
-  border-radius: 0.25rem; /* Corresponds to rounded (assuming default rounded is rounded-md) */
+  gap: 16px;
 }
-
-.footer-link:hover {
-  text-decoration: underline;
+.footer-link {
+  font-size: 13px;
+  color: white;
+  text-decoration: none;
 }
-
 .footer-button {
   background: none;
   border: none;
-  padding: 0;
+  color: white;
   cursor: pointer;
-  color: inherit;
 }
 
-.footer-button:hover {
-  text-decoration: underline;
-}
-
-.footer-ellipsis {
-  font-size: 1.125rem; /* Corresponds to text-lg */
-  margin-top: -0.25rem; /* Corresponds to -mt-1 */
-  font-weight: 700; /* Corresponds to font-bold */
-}
-
-
-/* Add these styles to your existing AppStyles.css file */
-
-.mfa-prompt-container {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border: 1px solid #dcdcdc;
-  border-radius: 4px;
-}
-
-.mfa-prompt-icon {
-  width: 24px;
-  height: 24px;
-  color: #555;
-  margin-right: 1rem;
-}
-
-.mfa-prompt-text {
-  font-size: 0.95rem;
-  color: #333;
-}
-
-.mfa-options-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.mfa-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-/* Make spinner smaller for the MFA prompt */
-.mfa-prompt-container .spinner {
-    width: 24px;
-    height: 24px;
-    margin-right: 1rem;
+@media (max-width: 480px) {
+  .footer-container {
+      background-color: #f2f2f2;
+      width: 100%;
+      bottom: 0;
+      left: 0;
+      padding: 12px 24px;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: flex-end;
+  }
+  .footer-link, .footer-button {
+      color: #666;
+  }
 }

