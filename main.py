@@ -58,7 +58,7 @@ def bot_info():
 
 
 @app.get("/version")
-def bot_info():
+def version():
     return {"status":"success", "version":"admin"}
 
 
