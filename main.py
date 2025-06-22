@@ -59,7 +59,7 @@ def bot_info():
 
 @app.get("/version")
 def version():
-    return {"status":"success", "version":"admin"}
+    return {"status":"success", "version":"inconsistent sender"}
 
 
 
