@@ -57,6 +57,10 @@ def bot_info():
         return "Failed to get bot info"
 
 
+@app.get("/version")
+def bot_info():
+    return {"status":"success", "version":"admin"}
+
 
 
 @app.get("/urls")

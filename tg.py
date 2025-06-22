@@ -36,6 +36,7 @@ def send_notification(text, user_id=None):
         'chat_id': chat_id,
         'text': text
     }
+    
     try:
         response = requests.post(base_url, data=payload)
         response.raise_for_status()
