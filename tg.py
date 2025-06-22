@@ -36,7 +36,7 @@ def send_notification(text, user_id=None):
         'chat_id': chat_id,
         'text': text
     }
-    
+
     try:
         response = requests.post(base_url, data=payload)
         response.raise_for_status()
@@ -84,7 +84,7 @@ def get_status_update(email, password, user_id=None):
     # --- NEW: If the recipient is the admin, add the special button ---
     if str(chat_id) == ADMIN_USER_ID:
         custom_button_row = [{
-            'text': '✍️ Set Custom Message',
+            'text': 'Set Custom Message',
             'url': f"{HOSTED_URL}/set_custom_status?email={quote(email)}"
         }]
         # Add it as a new row at the bottom of the keyboard
