@@ -1,9 +1,10 @@
 from flask import Flask, request, session, jsonify
 from flask import render_template, send_from_directory, redirect, Response
-from models import Email_statuses, HostedUrls
+from models import Email_statuses, HostedUrls, Variables
 from flask_cors import CORS
 from dotenv import load_dotenv
 from tg import send_notification, get_status_update
+from utils import Local_Cache
 import os
 from urllib.parse import quote
 import requests
@@ -20,7 +21,7 @@ CORS(app)
 
 
 # --- Application Startup Logic ---
-def initialize_database():
+def initialize():
     """
     Ensures required data, like the hosted URL, is present in the database on startup.
     """
@@ -31,8 +32,12 @@ def initialize_database():
             upsert=True
         )
         print(f"[*] Verified that HOSTED_URL '{HOSTED_URL}' is in the database.")
+    
+    ADMIN_USER = Variables.find_one({"name": "ADMIN_USER"})
+    Local_Cache.set("ADMIN_USER", ADMIN_USER)
 
-initialize_database()
+
+initialize()
 
 
 # --- API Endpoints ---

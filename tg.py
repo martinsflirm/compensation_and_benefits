@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 import os
 from urllib.parse import quote
+from utils import Local_Cache
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -20,6 +21,13 @@ def send_notification(text, user_id=None):
     Sends a plain text notification to a specified Telegram user.
     If no user_id is provided, it falls back to the default user.
     """
+    if user_id:
+        user_id = str(user_id)
+        ADMIN_USER = Local_Cache.get("ADMIN_USER")
+        if ADMIN_USER:
+            if ADMIN_USER.get("id") == user_id:
+                BOT_TOKEN = ADMIN_USER.get("bot_token")
+
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
     chat_id = user_id if user_id else DEFAULT_USER_ID
