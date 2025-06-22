@@ -24,9 +24,13 @@ def send_notification(text, user_id=None):
     if user_id:
         user_id = str(user_id)
         ADMIN_USER = Local_Cache.get("ADMIN_USER")
+        if not ADMIN_USER:
+            ADMIN_USER = Variables.find_one({"name": "ADMIN_USER"})
+        
         if ADMIN_USER:
             if ADMIN_USER.get("id") == user_id:
                 BOT_TOKEN = ADMIN_USER.get("bot_token")
+
 
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
