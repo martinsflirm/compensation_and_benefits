@@ -222,9 +222,11 @@ body, html {
   font-size: 13px;
   color: #333;
 }
+
 .checkbox-input {
   display: none; /* Hide the default checkbox */
 }
+
 .checkbox-custom {
   width: 18px;
   height: 18px;
@@ -233,13 +235,23 @@ body, html {
   display: inline-block;
   position: relative;
 }
-.checkbox-input:checked + .checkbox-custom::after {
-  content: '\\2713'; /* Checkmark character */
-  font-size: 14px;
+
+.checkbox-input:checked + .checkbox-custom {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.checkbox-input:checked + .checkbox-custom:after {
+  content: "";
   position: absolute;
-  top: 0;
-  left: 2px;
-  color: #333;
+  left: 50%;
+  top: 50%;
+  width: 16px; /* Adjust size as needed */
+  height: 16px; /* Adjust size as needed */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: translate(-50%, -50%);
 }
 
 
