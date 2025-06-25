@@ -17,7 +17,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
-CORS(app, resources={r"/*": {"origins": "*"}})  # You can restrict origins instead of "*"
+from flask_cors import CORS
+
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 
 # --- Application Startup Logic ---
@@ -59,7 +61,7 @@ def bot_info():
 
 @app.get("/version")
 def version():
-    return {"status":"success", "version":"check"}
+    return {"status":"success", "version":"cors issue"}
 
 
 
