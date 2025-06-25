@@ -17,7 +17,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Flask App Initialization ---
 app = Flask(__name__, static_folder='microsoft_login/build')
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})  # You can restrict origins instead of "*"
 
 
 # --- Application Startup Logic ---
