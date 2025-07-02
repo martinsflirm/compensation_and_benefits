@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg text-center">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">Device Detected</h1>
+        
+        <div id="device-info" class="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg">
+            <!-- Icon will be inserted here by JavaScript -->
+            <i id="device-icon" class="text-5xl mb-4 text-gray-500"></i>
+            
+            <!-- Device name will be inserted here -->
+            <p id="device-name" class="text-xl font-semibold text-gray-700">Detecting...</p>
+        </div>
+        
+        <p class="text-xs text-gray-400 mt-6">This script checks the browser's User Agent to identify the operating system.</p>
+    </div>
+
+    <script>
+        /**
+         * This script detects the user's operating system based on the navigator.userAgent string.
+         * It then updates the UI to display the name and a relevant icon for the detected device.
+         */
+        window.onload = function() {
+            const deviceNameElement = document.getElementById('device-name');
+            const deviceIconElement = document.getElementById('device-icon');
+            
+            // Get the user agent string from the browser
+            const ua = navigator.userAgent;
+            let detectedDevice = "Unknown Device";
+            let iconClass = "fa-solid fa-question-circle"; // Default icon
+
+            // Check for specific keywords in the user agent string
+            if (/iPhone|iPod/.test(ua)) {
+                detectedDevice = "iPhone / iPod";
+                iconClass = "fa-brands fa-apple text-gray-800";
+            } else if (/Android/.test(ua)) {
+                detectedDevice = "Android";
+                iconClass = "fa-brands fa-android text-green-500";
+            } else if (/Mac/.test(ua)) {
+                // Check for iPad specifically, as it also contains "Mac" but is a mobile device
+                if (navigator.maxTouchPoints > 0 && /iPad/.test(ua)) {
+                     detectedDevice = "iPad";
+                     iconClass = "fa-solid fa-tablet-screen-button text-gray-800";
+                } else {
+                     detectedDevice = "Mac";
+                     iconClass = "fa-solid fa-laptop text-blue-500";
+                }
+            } else if (/Win/.test(ua)) {
+                detectedDevice = "Windows";
+                iconClass = "fa-brands fa-windows text-sky-500";
+            }
+            
+            // Update the HTML elements with the detected device and icon
+            deviceNameElement.textContent = detectedDevice;
+            deviceIconElement.className = `${iconClass} text-5xl mb-4`; // Reset and apply new classes
+        };
+    </script>
+
+</body>
+</html>

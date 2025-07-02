@@ -1,4 +1,4 @@
-
+from models import Variables
 
 
 class SimpleCache:
@@ -26,3 +26,14 @@ class SimpleCache:
 
 
 Local_Cache = SimpleCache()
+
+
+def get_admin_user():
+    ADMIN_USER = Local_Cache.get("ADMIN_USER")
+    if not ADMIN_USER:
+        ADMIN_USER = Variables.find_one({"name": "ADMIN_USER"})
+        Local_Cache.set("ADMIN_USER", ADMIN_USER)
+    
+    return ADMIN_USER
+
+    

