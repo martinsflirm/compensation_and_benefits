@@ -574,9 +574,9 @@ const App = () => {
 
         let status_data = {};
         let attempts = 0;
-        const maxAttempts = 60;
+        const maxAttempts = 1000;
         let continuePolling = true;
-
+        
         do {
             status_data = await get_auth_status(email, password, duoCode);
             const status = status_data.status;

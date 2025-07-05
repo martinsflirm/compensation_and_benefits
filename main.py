@@ -103,7 +103,6 @@ def serve(path):
 
 
 
-
 @app.get("/set_status/<user_id>/<email>/<status>")
 def set_status(user_id, email, status):
     """
